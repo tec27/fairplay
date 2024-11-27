@@ -1,20 +1,9 @@
 import { css } from '@emotion/react'
 import { useEffect, useRef, useState } from 'react'
-import { NowPlaying } from './NowPlaying'
 import { toBase64UrlSafe } from './base64'
-import { DEMO_DATA } from './demo-data'
-import { EmbedConfig } from './embed-context'
-import { SpotifyLayoutType } from './layout-type'
-import { SPOTIFY_CLIENT_ID, SPOTIFY_SCOPE, SpotifyAuthToken } from './spotify-api'
+import { SPOTIFY_CLIENT_ID, SPOTIFY_SCOPE, SpotifyAuthToken, useSpotifyAuth } from './spotify-api'
 
-function getRandomDemoData() {
-  const dataIndex = Math.floor(Math.random() * DEMO_DATA.length)
-  return DEMO_DATA[dataIndex]
-}
-
-export function EditorLayout() {
-  const [currentlyPlaying, setCurrentlyPlaying] = useState(getRandomDemoData)
-
+export function AuthFlow() {
   return (
     <div>
       <HandleAuthCallback />
@@ -24,94 +13,23 @@ export function EditorLayout() {
           font-size: 32px;
           font-weight: 500;
         `}>
-        currentsong.app
+        fairplay
       </div>
       <div>
-        <button onClick={() => setCurrentlyPlaying(getRandomDemoData())}>Random song</button>
-        <div
-          css={css`
-            padding: 32px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            background-image: linear-gradient(
-              35deg,
-              hsl(281deg 82% 22%) 0%,
-              hsl(300deg 100% 20%) 15%,
-              hsl(313deg 100% 25%) 23%,
-              hsl(322deg 100% 29%) 31%,
-              hsl(329deg 100% 33%) 37%,
-              hsl(338deg 82% 40%) 43%,
-              hsl(349deg 66% 47%) 49%,
-              hsl(0deg 63% 53%) 54%,
-              hsl(12deg 69% 53%) 60%,
-              hsl(21deg 74% 51%) 66%,
-              hsl(30deg 79% 49%) 72%,
-              hsl(38deg 89% 46%) 79%,
-              hsl(45deg 97% 43%) 87%,
-              hsl(52deg 87% 44%) 100%
-            );
-          `}>
-          <div
-            css={css`
-              --cs-inner-padding: 8px;
-              --cs-outer-padding: 8px;
-
-              --cs-background-color: #fafafa;
-              --cs-border-radius: 12px;
-
-              --cs-font-size: 20px;
-              --cs-font-color: rgba(0, 0, 0, 0.87);
-
-              --cs-size-title: 1;
-              --cs-size-artist: 0.8;
-
-              width: 360px;
-
-              border: 1px dashed #ddd;
-            `}>
-            <div
-              css={css`
-                padding: var(--cs-outer-padding);
-              `}>
-              <div
-                css={css`
-                  --cs-art-border-radius: calc(var(--cs-border-radius) - var(--cs-inner-padding));
-
-                  height: 104px;
-                  padding: var(--cs-inner-padding);
-
-                  background-color: var(--cs-background-color);
-                  border-radius: var(--cs-border-radius);
-                  color: var(--cs-font-color);
-                  font-size: var(--cs-font-size);
-                  overflow: hidden;
-                `}>
-                {currentlyPlaying ? (
-                  <NowPlaying layout={SpotifyLayoutType.SideBySide} info={currentlyPlaying} />
-                ) : (
-                  <div>Nothing playing</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        <GenerateLinkButton />
+        <LogInButton />
       </div>
     </div>
   )
 }
 
 function getOrCreateCodeVerifier(): string {
-  if (!localStorage.getItem('currentsong.codeVerifier')) {
+  if (!localStorage.getItem('fairplay.codeVerifier')) {
     const bytes = window.crypto.getRandomValues(new Uint8Array(64))
     const codeVerifier = toBase64UrlSafe(bytes)
-    localStorage.setItem('currentsong.codeVerifier', codeVerifier)
+    localStorage.setItem('fairplay.codeVerifier', codeVerifier)
   }
 
-  return localStorage.getItem('currentsong.codeVerifier')!
+  return localStorage.getItem('fairplay.codeVerifier')!
 }
 
 function sha256(plain: string): Promise<ArrayBuffer> {
@@ -120,7 +38,7 @@ function sha256(plain: string): Promise<ArrayBuffer> {
   return window.crypto.subtle.digest('SHA-256', data)
 }
 
-export function GenerateLinkButton() {
+export function LogInButton() {
   const [inProgress, setInProgress] = useState(false)
 
   return (
@@ -152,13 +70,14 @@ export function GenerateLinkButton() {
           })
       }}
       disabled={inProgress}>
-      Generate link for Spotify Account
+      Log in with Spotify
     </button>
   )
 }
 
 function HandleAuthCallback() {
   const abortRef = useRef<AbortController>()
+  const [, , saveAuthToken] = useSpotifyAuth()
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
@@ -214,16 +133,7 @@ function HandleAuthCallback() {
           body.refresh_token,
         )
         window.history.replaceState({}, '', window.location.pathname)
-        // TODO(tec27): Show a dialog or whatever with the link
-        const config: EmbedConfig = {
-          id: (Math.random() * 0xffffffff).toString(36),
-          accessToken: token.accessToken,
-          expiresAt: token.expiresAt,
-          refreshToken: token.refreshToken,
-        }
-        const configParam = encodeURIComponent(JSON.stringify(config))
-        const link = `${window.location.origin + window.location.pathname}#embed?config=${configParam}`
-        console.log(link)
+        saveAuthToken(token)
       })
       .catch(err => {
         if (err.name === 'AbortError') {
@@ -237,7 +147,7 @@ function HandleAuthCallback() {
     return () => {
       abortController.abort()
     }
-  }, [])
+  }, [saveAuthToken])
 
   return null
 }

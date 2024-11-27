@@ -1,9 +1,8 @@
 import { Global, css } from '@emotion/react'
-import { EditorLayout } from './EditorLayout'
-import { EmbedLayout } from './EmbedLayout'
-import { EmbedProvider } from './EmbedProvider'
-import { SpotifyAuthProvider } from './Spotify'
-import { useIsEmbedded } from './embed-context'
+import { AuthFlow } from './AuthFlow'
+import { PlaylistsList } from './PlaylistsList'
+import { SpotifyAuthProvider, SpotifyCurrentUserProvider, SpotifyUserView } from './Spotify'
+import { useSpotifyAuthToken } from './spotify-api'
 
 export function App() {
   return (
@@ -56,23 +55,23 @@ export function App() {
           }
         `}
       />
-      <EmbedProvider>
+
+      <SpotifyAuthProvider>
         <AppContent />
-      </EmbedProvider>
+      </SpotifyAuthProvider>
     </>
   )
 }
 
 function AppContent() {
-  const isEmbedded = useIsEmbedded()
-
-  // TODO(tec27): Remove auth provider from the editor stuff and just handle the code things
-  // specifically when generating a link
-  return isEmbedded ? (
-    <EmbedLayout />
+  const authToken = useSpotifyAuthToken()
+  return authToken ? (
+    <SpotifyCurrentUserProvider>
+      <div>we're in 😎</div>
+      <SpotifyUserView />
+      <PlaylistsList />
+    </SpotifyCurrentUserProvider>
   ) : (
-    <SpotifyAuthProvider>
-      <EditorLayout />
-    </SpotifyAuthProvider>
+    <AuthFlow />
   )
 }

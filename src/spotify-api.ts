@@ -1,8 +1,15 @@
 import { createContext, useContext } from 'react'
-import { ReadonlyDeep } from 'type-fest'
+import { CamelCasedPropertiesDeep, ReadonlyDeep } from 'type-fest'
 
-export const SPOTIFY_CLIENT_ID = '7d5478be2f0e4ae1bd73390594308db7'
-export const SPOTIFY_SCOPE = 'user-read-currently-playing'
+export const SPOTIFY_CLIENT_ID = '20175aa01aeb4f3882e9d585c2fa24d5'
+export const SPOTIFY_SCOPE = [
+  'playlist-modify-public',
+  'playlist-modify-private',
+  'playlist-read-collaborative',
+  'playlist-read-private',
+  'user-read-currently-playing',
+  'user-read-playback-state',
+].join(' ')
 
 export interface SpotifyImage {
   url: string
@@ -12,12 +19,18 @@ export interface SpotifyImage {
 
 export interface SpotifyUserJson {
   display_name: string
+  id: string
   images: SpotifyImage[]
 }
 
-export interface SpotifyUser {
-  displayName: string
-  images: SpotifyImage[]
+export type SpotifyUser = CamelCasedPropertiesDeep<SpotifyUserJson>
+
+export function fromSpotifyUserJson(json: SpotifyUserJson): SpotifyUser {
+  return {
+    displayName: json.display_name,
+    id: json.id,
+    images: json.images,
+  }
 }
 
 export interface SpotifyArtist {
@@ -41,21 +54,7 @@ export interface SpotifyTrackJson {
   type: 'track'
 }
 
-export interface SpotifyTrack {
-  album: {
-    id: string
-    images: SpotifyImage[]
-    name: string
-    releaseDate: string
-    releaseDatePrecision: 'year' | 'month' | 'day'
-    artists: SpotifyArtist[]
-  }
-  artists: SpotifyArtist[]
-  durationMs: number
-  id: string
-  name: string
-  type: 'track'
-}
+export type SpotifyTrack = CamelCasedPropertiesDeep<SpotifyTrackJson>
 
 export interface SpotifyEpisodeJson {
   duration_ms: number
@@ -72,20 +71,7 @@ export interface SpotifyEpisodeJson {
   type: 'episode'
 }
 
-export interface SpotifyEpisode {
-  durationMs: number
-  id: string
-  images: SpotifyImage[]
-  name: string
-  releaseDate: string
-  releaseDatePrecision: 'year' | 'month' | 'day'
-  show: {
-    id: string
-    name: string
-    images: SpotifyImage[]
-  }
-  type: 'episode'
-}
+export type SpotifyEpisode = CamelCasedPropertiesDeep<SpotifyEpisodeJson>
 
 export interface CurrentlyPlayingJson {
   progress_ms: number
@@ -95,11 +81,7 @@ export interface CurrentlyPlayingJson {
 
 export type SpotifyItem = SpotifyTrack | SpotifyEpisode
 
-export interface CurrentlyPlaying {
-  progressMs: number
-  isPlaying: boolean
-  item: SpotifyItem
-}
+export type CurrentlyPlaying = CamelCasedPropertiesDeep<CurrentlyPlayingJson>
 
 export function fromTrackJson(json: SpotifyTrackJson): SpotifyTrack {
   return {
@@ -152,6 +134,58 @@ export function getImages(info: ReadonlyDeep<CurrentlyPlaying>): ReadonlyDeep<Sp
   }
 }
 
+export interface SpotifyPlaylistJson {
+  collaborative: boolean
+  description: string
+  href: string
+  id: string
+  images: SpotifyImage[]
+  name: string
+  owner: SpotifyUserJson
+  public: boolean
+  tracks: {
+    href: string
+    total: number
+  }
+}
+
+export type SpotifyPlaylist = CamelCasedPropertiesDeep<SpotifyPlaylistJson>
+
+export function fromSpotifyPlaylistJson(json: SpotifyPlaylistJson): SpotifyPlaylist {
+  return {
+    collaborative: json.collaborative,
+    description: json.description,
+    href: json.href,
+    id: json.id,
+    images: json.images,
+    name: json.name,
+    owner: fromSpotifyUserJson(json.owner),
+    public: json.public,
+    tracks: {
+      href: json.tracks.href,
+      total: json.tracks.total,
+    },
+  }
+}
+
+export interface SpotifyPlaylistsResponseJson {
+  next: string | null
+  total: number
+  items: SpotifyPlaylistJson[]
+}
+
+export type SpotifyPlaylistsResponse = CamelCasedPropertiesDeep<SpotifyPlaylistsResponseJson>
+
+export function fromSpotifyPlaylistsResponseJson(
+  json: SpotifyPlaylistsResponseJson,
+): SpotifyPlaylistsResponse {
+  return {
+    next: json.next,
+    total: json.total,
+    items: json.items.map(fromSpotifyPlaylistJson),
+  }
+}
+
 export class FetchError extends Error {
   constructor(
     message: string,
@@ -179,7 +213,7 @@ export class SpotifyAuthToken {
       let tryAgain = false
       try {
         await this.refreshPromise
-      } catch (err) {
+      } catch (_err) {
         tryAgain = true
       }
 
@@ -215,11 +249,17 @@ export class SpotifyAuthToken {
   }
 
   async fetch<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T | undefined> {
-    const slashedPath = path.startsWith('/') ? path : `/${path}`
+    let fullUrl: string
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      fullUrl = path
+    } else {
+      const slashedPath = path.startsWith('/') ? path : `/${path}`
+      fullUrl = `https://api.spotify.com/v1${slashedPath}`
+    }
 
     await this.refreshIfNeeded(opts?.signal)
 
-    const response = await fetch(`https://api.spotify.com/v1${slashedPath}`, {
+    const response = await fetch(fullUrl, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
       },
@@ -245,7 +285,7 @@ export class SpotifyAuthToken {
 }
 
 export function loadAuthToken(): SpotifyAuthToken | undefined {
-  const encoded = localStorage.getItem('currentsong.authToken')
+  const encoded = localStorage.getItem('fairplay.authToken')
   if (!encoded) {
     return undefined
   }
@@ -264,7 +304,7 @@ export function loadAuthToken(): SpotifyAuthToken | undefined {
 
 export function saveAuthToken(token: SpotifyAuthToken) {
   localStorage.setItem(
-    'currentsong.authToken',
+    'fairplay.authToken',
     JSON.stringify({
       accessToken: token.accessToken,
       expiresAt: token.expiresAt,
@@ -274,13 +314,18 @@ export function saveAuthToken(token: SpotifyAuthToken) {
 }
 
 export function clearAuthToken() {
-  localStorage.removeItem('currentsong.authToken')
+  localStorage.removeItem('fairplay.authToken')
 }
 
-export type SpotifyAuthContextValue = [token: SpotifyAuthToken | undefined, logOut: () => void]
+export type SpotifyAuthContextValue = [
+  token: SpotifyAuthToken | undefined,
+  logOut: () => void,
+  saveAuthToken: (token: SpotifyAuthToken) => void,
+]
 
-export const SpotifyAuthContext = createContext<[SpotifyAuthToken | undefined, () => void]>([
+export const SpotifyAuthContext = createContext<SpotifyAuthContextValue>([
   undefined,
+  () => {},
   () => {},
 ])
 
@@ -296,4 +341,10 @@ export function useSpotifyAuthToken() {
 export function useLogOut() {
   const [, logOut] = useContext(SpotifyAuthContext)
   return logOut
+}
+
+export const SpotifyCurrentUserContext = createContext<SpotifyUser | undefined>(undefined)
+
+export function useCurrentUser() {
+  return useContext(SpotifyCurrentUserContext)
 }
