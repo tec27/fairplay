@@ -182,7 +182,8 @@ export function fromSpotifyPlaylistsResponseJson(
   return {
     next: json.next,
     total: json.total,
-    items: json.items.map(fromSpotifyPlaylistJson),
+    // NOTE(tec27): Spotify's API seems to return nulls in this list sometimes, no idea why
+    items: json.items.filter(i => !!i).map(fromSpotifyPlaylistJson),
   }
 }
 

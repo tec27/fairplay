@@ -1,5 +1,6 @@
 import { css } from '@emotion/react'
 import { useEffect, useRef, useState } from 'react'
+import { Dialog } from './Dialog'
 import {
   fromSpotifyPlaylistsResponseJson,
   SpotifyPlaylist,
@@ -9,7 +10,42 @@ import {
 } from './spotify-api'
 import { AutoSpotifyImageView } from './SpotifyImageView'
 
-export function PlaylistsList() {
+export function ChoosePlaylistDialog({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean
+  onClose: (playlistId?: string) => void
+}) {
+  return (
+    <Dialog
+      css={css`
+        width: 100%;
+        height: 100%;
+        max-width: 768px;
+        max-height: 1024px;
+      `}
+      modal={true}
+      isOpen={isOpen}
+      onClose={onClose}>
+      <form>
+        <div
+          css={css`
+            display: flex;
+            justify-content: space-between;
+          `}>
+          <div>Choose a playlist</div>
+          <button value='' formMethod='dialog' autoFocus={true}>
+            Close
+          </button>
+        </div>
+        <PlaylistsList />
+      </form>
+    </Dialog>
+  )
+}
+
+function PlaylistsList() {
   const spotifyAuth = useSpotifyAuthToken()
   const currentUser = useCurrentUser()
 
@@ -80,7 +116,7 @@ export function PlaylistsList() {
 
 function PlaylistItem({ playlist }: { playlist: SpotifyPlaylist }) {
   return (
-    <div
+    <button
       css={css`
         height: 80px;
         padding: 8px;
@@ -88,7 +124,16 @@ function PlaylistItem({ playlist }: { playlist: SpotifyPlaylist }) {
         display: flex;
         align-items: center;
         gap: 8px;
-      `}>
+
+        background: none;
+        border: none;
+
+        &:hover {
+          cursor: pointer;
+        }
+      `}
+      value={playlist.id}
+      formMethod='dialog'>
       <AutoSpotifyImageView
         css={css`
           width: auto;
@@ -110,6 +155,6 @@ function PlaylistItem({ playlist }: { playlist: SpotifyPlaylist }) {
         </div>
         <div>{playlist.tracks.total} tracks</div>
       </div>
-    </div>
+    </button>
   )
 }
