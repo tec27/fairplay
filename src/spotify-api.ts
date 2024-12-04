@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import { CamelCasedPropertiesDeep, ReadonlyDeep } from 'type-fest'
 
-export const SPOTIFY_CLIENT_ID = '20175aa01aeb4f3882e9d585c2fa24d5'
+export const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID
 export const SPOTIFY_SCOPE = [
   'playlist-modify-public',
   'playlist-modify-private',
@@ -134,7 +134,7 @@ export function getImages(info: ReadonlyDeep<CurrentlyPlaying>): ReadonlyDeep<Sp
   }
 }
 
-export interface SpotifyPlaylistJson {
+export interface SimplePlaylistJson {
   collaborative: boolean
   description: string
   href: string
@@ -149,9 +149,9 @@ export interface SpotifyPlaylistJson {
   }
 }
 
-export type SpotifyPlaylist = CamelCasedPropertiesDeep<SpotifyPlaylistJson>
+export type SimplePlaylist = CamelCasedPropertiesDeep<SimplePlaylistJson>
 
-export function fromSpotifyPlaylistJson(json: SpotifyPlaylistJson): SpotifyPlaylist {
+export function fromSimplePlaylistJson(json: SimplePlaylistJson): SimplePlaylist {
   return {
     collaborative: json.collaborative,
     description: json.description,
@@ -171,7 +171,7 @@ export function fromSpotifyPlaylistJson(json: SpotifyPlaylistJson): SpotifyPlayl
 export interface SpotifyPlaylistsResponseJson {
   next: string | null
   total: number
-  items: SpotifyPlaylistJson[]
+  items: SimplePlaylistJson[]
 }
 
 export type SpotifyPlaylistsResponse = CamelCasedPropertiesDeep<SpotifyPlaylistsResponseJson>
@@ -183,7 +183,67 @@ export function fromSpotifyPlaylistsResponseJson(
     next: json.next,
     total: json.total,
     // NOTE(tec27): Spotify's API seems to return nulls in this list sometimes, no idea why
-    items: json.items.filter(i => !!i).map(fromSpotifyPlaylistJson),
+    items: json.items.filter(i => !!i).map(fromSimplePlaylistJson),
+  }
+}
+
+// NOTE(tec27): This is just the fields we actually care about (and therefore request in our API
+// request), this API can actually return more things
+export interface PlaylistDetailsJson {
+  description: boolean
+  id: string
+  images: SpotifyImage[]
+  name: string
+  owner: SpotifyUserJson
+  tracks: {
+    total: number
+  }
+  uri: string
+}
+
+export type PlaylistDetails = CamelCasedPropertiesDeep<PlaylistDetailsJson>
+
+export function fromPlaylistDetailsJson(json: PlaylistDetailsJson): PlaylistDetails {
+  return {
+    description: json.description,
+    id: json.id,
+    images: json.images,
+    name: json.name,
+    owner: fromSpotifyUserJson(json.owner),
+    tracks: {
+      total: json.tracks.total,
+    },
+    uri: json.uri,
+  }
+}
+
+// NOTE(tec27): This is just the fields we actually care about (and therefore request in our API
+// request), this API can actually return more things
+export interface PlaylistItemsJson {
+  next: string | null
+  total: number
+  items: Array<{
+    added_by: { id: string }
+    track: {
+      duration_ms: number
+      id: string
+    }
+  }>
+}
+
+export type PlaylistItems = CamelCasedPropertiesDeep<PlaylistItemsJson>
+
+export function fromPlaylistItemsJson(json: PlaylistItemsJson): PlaylistItems {
+  return {
+    next: json.next,
+    total: json.total,
+    items: json.items.map(item => ({
+      addedBy: { id: item.added_by.id },
+      track: {
+        durationMs: item.track.duration_ms,
+        id: item.track.id,
+      },
+    })),
   }
 }
 

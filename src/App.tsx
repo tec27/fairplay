@@ -1,9 +1,14 @@
-import { Global, css } from '@emotion/react'
-import { useState } from 'react'
+import { css, Global } from '@emotion/react'
+import { useEffect, useRef, useState } from 'react'
 import { AuthFlow } from './AuthFlow'
 import { ChoosePlaylistDialog } from './PlaylistsList'
 import { SpotifyAuthProvider, SpotifyCurrentUserProvider, SpotifyUserView } from './Spotify'
-import { useSpotifyAuthToken } from './spotify-api'
+import {
+  fromPlaylistDetailsJson,
+  PlaylistDetails,
+  PlaylistDetailsJson,
+  useSpotifyAuthToken,
+} from './spotify-api'
 
 export function App() {
   return (
@@ -82,8 +87,47 @@ function AppContent() {
 }
 
 function MainForm() {
+  const spotifyAuth = useSpotifyAuthToken()
   const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = useState(false)
   const [playlistId, setPlaylistId] = useState<string | undefined>(undefined)
+
+  const [playlist, setPlaylist] = useState<PlaylistDetails | undefined>(undefined)
+  const abortRef = useRef<AbortController>()
+  useEffect(() => {
+    abortRef.current?.abort()
+
+    if (!playlistId) {
+      return
+    }
+
+    const abortController = new AbortController()
+    abortRef.current = abortController
+    spotifyAuth
+      ?.fetch<PlaylistDetailsJson>(
+        `/playlists/${encodeURIComponent(playlistId)}` +
+          '?fields=description,id,images,name,owner,tracks.total,uri',
+        {
+          signal: abortController.signal,
+        },
+      )
+      .then(json => {
+        if (!abortController.signal.aborted) {
+          setPlaylist(json ? fromPlaylistDetailsJson(json) : json)
+        }
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') {
+          return
+        }
+
+        // TODO(tec27): Show this to the user in some way
+        console.error(err)
+      })
+
+    return () => {
+      abortController.abort()
+    }
+  }, [spotifyAuth, playlistId])
 
   return (
     <div>
@@ -104,6 +148,7 @@ function MainForm() {
         <div>{playlistId ?? 'No playlist chosen'}</div>
         <button onClick={() => setIsPlaylistDialogOpen(true)}>Choose playlist</button>
       </div>
+      <div>{playlist ? JSON.stringify(playlist, null, 2) : undefined}</div>
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Dialog } from './Dialog'
 import {
   fromSpotifyPlaylistsResponseJson,
-  SpotifyPlaylist,
+  SimplePlaylist,
   SpotifyPlaylistsResponseJson,
   useCurrentUser,
   useSpotifyAuthToken,
@@ -50,7 +50,7 @@ function PlaylistsList() {
   const currentUser = useCurrentUser()
 
   const [isLoading, setIsLoading] = useState(false)
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([])
+  const [playlists, setPlaylists] = useState<SimplePlaylist[]>([])
 
   const abortRef = useRef<AbortController>()
 
@@ -69,7 +69,7 @@ function PlaylistsList() {
 
     Promise.resolve()
       .then(async () => {
-        let playlists: SpotifyPlaylist[] = []
+        let playlists: SimplePlaylist[] = []
         let next: string | undefined =
           `/users/${encodeURIComponent(currentUser.id)}/playlists?limit=50`
         do {
@@ -114,7 +114,7 @@ function PlaylistsList() {
   )
 }
 
-function PlaylistItem({ playlist }: { playlist: SpotifyPlaylist }) {
+function PlaylistItem({ playlist }: { playlist: SimplePlaylist }) {
   return (
     <button
       css={css`
