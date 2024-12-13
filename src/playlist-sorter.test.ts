@@ -69,6 +69,11 @@ test('finds correct first track in test data', () => {
   expect(result).toEqual({ from: 4, insertBefore: 2 })
 })
 
+test('finds correct track when starting after unsorted', () => {
+  const result = findNextReorderOp(TEST_PLAYLIST, 5)
+  expect(result).toEqual({ from: 9, insertBefore: 5 })
+})
+
 test('sorts the entire test data in succession', () => {
   const items = TEST_PLAYLIST.slice()
   let opCount = 0
@@ -78,7 +83,7 @@ test('sorts the entire test data in succession', () => {
     applyReorderOp(items, op)
   }
 
-  expect(opCount).toBe(9)
+  expect(opCount).toBe(11)
   expect(items).toMatchInlineSnapshot(`
     [
       {
@@ -128,24 +133,6 @@ test('sorts the entire test data in succession', () => {
       },
       {
         "addedBy": {
-          "id": "fooUser",
-        },
-        "track": {
-          "durationMs": 224013,
-          "id": "2SSVIRJ4PPrVcc9BwvuHtX",
-        },
-      },
-      {
-        "addedBy": {
-          "id": "fooUser",
-        },
-        "track": {
-          "durationMs": 140000,
-          "id": "6uANFgbxItwdZddunMsiaj",
-        },
-      },
-      {
-        "addedBy": {
           "id": "otherUser",
         },
         "track": {
@@ -164,11 +151,29 @@ test('sorts the entire test data in succession', () => {
       },
       {
         "addedBy": {
+          "id": "fooUser",
+        },
+        "track": {
+          "durationMs": 224013,
+          "id": "2SSVIRJ4PPrVcc9BwvuHtX",
+        },
+      },
+      {
+        "addedBy": {
           "id": "otherUser",
         },
         "track": {
           "durationMs": 178453,
           "id": "3QwiidVHfeE9y5jl4n2MTC",
+        },
+      },
+      {
+        "addedBy": {
+          "id": "fooUser",
+        },
+        "track": {
+          "durationMs": 140000,
+          "id": "6uANFgbxItwdZddunMsiaj",
         },
       },
       {
@@ -249,7 +254,7 @@ test('sorts the entire test data in succession (with startAt)', () => {
     startAt = op.insertBefore + 1
   }
 
-  expect(opCount).toBe(9)
+  expect(opCount).toBe(11)
   expect(items).toMatchInlineSnapshot(`
     [
       {
@@ -299,24 +304,6 @@ test('sorts the entire test data in succession (with startAt)', () => {
       },
       {
         "addedBy": {
-          "id": "fooUser",
-        },
-        "track": {
-          "durationMs": 224013,
-          "id": "2SSVIRJ4PPrVcc9BwvuHtX",
-        },
-      },
-      {
-        "addedBy": {
-          "id": "fooUser",
-        },
-        "track": {
-          "durationMs": 140000,
-          "id": "6uANFgbxItwdZddunMsiaj",
-        },
-      },
-      {
-        "addedBy": {
           "id": "otherUser",
         },
         "track": {
@@ -335,11 +322,29 @@ test('sorts the entire test data in succession (with startAt)', () => {
       },
       {
         "addedBy": {
+          "id": "fooUser",
+        },
+        "track": {
+          "durationMs": 224013,
+          "id": "2SSVIRJ4PPrVcc9BwvuHtX",
+        },
+      },
+      {
+        "addedBy": {
           "id": "otherUser",
         },
         "track": {
           "durationMs": 178453,
           "id": "3QwiidVHfeE9y5jl4n2MTC",
+        },
+      },
+      {
+        "addedBy": {
+          "id": "fooUser",
+        },
+        "track": {
+          "durationMs": 140000,
+          "id": "6uANFgbxItwdZddunMsiaj",
         },
       },
       {

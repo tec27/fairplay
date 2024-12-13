@@ -1,15 +1,13 @@
 import { css, Global } from '@emotion/react'
 import { useEffect, useRef, useState } from 'react'
 import { AuthFlow } from './AuthFlow'
+import { PlaylistSorter, PlaylistSortMode } from './playlist-sorter'
 import { ChoosePlaylistDialog } from './PlaylistsList'
 import { SpotifyAuthProvider, SpotifyCurrentUserProvider, SpotifyUserView } from './Spotify'
 import {
   fromPlaylistDetailsJson,
-  fromPlaylistItemsJson,
   PlaylistDetails,
   PlaylistDetailsJson,
-  PlaylistItem,
-  PlaylistItemsJson,
   useSpotifyAuthToken,
 } from './spotify-api'
 
@@ -152,65 +150,40 @@ function MainForm() {
         <button onClick={() => setIsPlaylistDialogOpen(true)}>Choose playlist</button>
       </div>
       <div>{playlist ? JSON.stringify(playlist, null, 2) : undefined}</div>
-      {playlistId ? <PlaylistItemsView playlistId={playlistId} /> : undefined}
+      {playlistId ? <PlaylistSorterView playlistId={playlistId} /> : undefined}
     </div>
   )
 }
 
-function PlaylistItemsView({ playlistId }: { playlistId: string }) {
+function PlaylistSorterView({ playlistId }: { playlistId: string }) {
   const spotifyAuth = useSpotifyAuthToken()
-  const [items, setItems] = useState<PlaylistItem[] | undefined>(undefined)
-  const abortRef = useRef<AbortController>()
-  useEffect(() => {
-    abortRef.current?.abort()
+  const [sortMode, _setSortMode] = useState<PlaylistSortMode>(PlaylistSortMode.OneTime)
+  const playlistSorterRef = useRef<PlaylistSorter | undefined>(undefined)
+  const [sortStatus, setSortStatus] = useState<string | undefined>(undefined)
+  const [error, setError] = useState<Error | undefined>(undefined)
 
+  useEffect(() => {
     if (!spotifyAuth) {
-      setItems(undefined)
       return
     }
 
-    const abortController = new AbortController()
-    abortRef.current = abortController
+    const playlistSorter = new PlaylistSorter(spotifyAuth, playlistId, sortMode)
+    playlistSorterRef.current = playlistSorter
 
-    Promise.resolve()
-      .then(async () => {
-        let playlistItems: PlaylistItem[] = []
-        let next: string | undefined =
-          `/playlists/${encodeURIComponent(playlistId)}/tracks` +
-          `?fields=next,total,items(added_by.id,track(id,duration_ms))&limit=100`
-        do {
-          const responseJson = await spotifyAuth?.fetch<PlaylistItemsJson>(next, {
-            signal: abortController.signal,
-          })
-          if (!responseJson) {
-            break
-          }
-          const response = fromPlaylistItemsJson(responseJson)
-          playlistItems = playlistItems.concat(response.items)
-          next = response.next ?? undefined
-        } while (next)
-
-        setItems(playlistItems)
-      })
-      .catch(err => {
-        if (err.name === 'AbortError') {
-          return
-        }
-
-        // TODO(tec27): Show this to the user in some way
-        console.error(err)
-        setItems(undefined)
-      })
+    playlistSorter.on('statusChange', setSortStatus).on('error', setError)
 
     return () => {
-      abortController.abort()
+      playlistSorterRef.current = undefined
+      playlistSorter.stop()
+      playlistSorter.off('statusChange', setSortStatus).off('error', setError)
     }
-  }, [spotifyAuth, playlistId])
+  }, [spotifyAuth, playlistId, sortMode])
 
   return (
     <div>
-      <div>{playlistId}</div>
-      <div>{items ? JSON.stringify(items, null, 2) : undefined}</div>
+      <button onClick={() => playlistSorterRef.current?.start()}>One Time Sort</button>
+      <div>{sortStatus}</div>
+      <div>{error ? `Error: ${error.message}` : undefined}</div>
     </div>
   )
 }

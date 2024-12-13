@@ -313,7 +313,10 @@ export class SpotifyAuthToken {
     saveAuthToken(this)
   }
 
-  async fetch<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T | undefined> {
+  async fetch<T>(
+    path: string,
+    opts?: { signal?: AbortSignal; method?: RequestInit['method']; body?: RequestInit['body'] },
+  ): Promise<T | undefined> {
     let fullUrl: string
     if (path.startsWith('http://') || path.startsWith('https://')) {
       fullUrl = path
@@ -325,9 +328,12 @@ export class SpotifyAuthToken {
     await this.refreshIfNeeded(opts?.signal)
 
     const response = await fetch(fullUrl, {
+      method: opts?.method ?? 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
       },
+      body: opts?.body,
       signal: opts?.signal,
     })
 
