@@ -5,8 +5,11 @@ import { ChoosePlaylistDialog } from './PlaylistsList'
 import { SpotifyAuthProvider, SpotifyCurrentUserProvider, SpotifyUserView } from './Spotify'
 import {
   fromPlaylistDetailsJson,
+  fromPlaylistItemsJson,
   PlaylistDetails,
   PlaylistDetailsJson,
+  PlaylistItem,
+  PlaylistItemsJson,
   useSpotifyAuthToken,
 } from './spotify-api'
 
@@ -149,6 +152,65 @@ function MainForm() {
         <button onClick={() => setIsPlaylistDialogOpen(true)}>Choose playlist</button>
       </div>
       <div>{playlist ? JSON.stringify(playlist, null, 2) : undefined}</div>
+      {playlistId ? <PlaylistItemsView playlistId={playlistId} /> : undefined}
+    </div>
+  )
+}
+
+function PlaylistItemsView({ playlistId }: { playlistId: string }) {
+  const spotifyAuth = useSpotifyAuthToken()
+  const [items, setItems] = useState<PlaylistItem[] | undefined>(undefined)
+  const abortRef = useRef<AbortController>()
+  useEffect(() => {
+    abortRef.current?.abort()
+
+    if (!spotifyAuth) {
+      setItems(undefined)
+      return
+    }
+
+    const abortController = new AbortController()
+    abortRef.current = abortController
+
+    Promise.resolve()
+      .then(async () => {
+        let playlistItems: PlaylistItem[] = []
+        let next: string | undefined =
+          `/playlists/${encodeURIComponent(playlistId)}/tracks` +
+          `?fields=next,total,items(added_by.id,track(id,duration_ms))&limit=100`
+        do {
+          const responseJson = await spotifyAuth?.fetch<PlaylistItemsJson>(next, {
+            signal: abortController.signal,
+          })
+          if (!responseJson) {
+            break
+          }
+          const response = fromPlaylistItemsJson(responseJson)
+          playlistItems = playlistItems.concat(response.items)
+          next = response.next ?? undefined
+        } while (next)
+
+        setItems(playlistItems)
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') {
+          return
+        }
+
+        // TODO(tec27): Show this to the user in some way
+        console.error(err)
+        setItems(undefined)
+      })
+
+    return () => {
+      abortController.abort()
+    }
+  }, [spotifyAuth, playlistId])
+
+  return (
+    <div>
+      <div>{playlistId}</div>
+      <div>{items ? JSON.stringify(items, null, 2) : undefined}</div>
     </div>
   )
 }

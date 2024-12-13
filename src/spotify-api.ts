@@ -219,17 +219,21 @@ export function fromPlaylistDetailsJson(json: PlaylistDetailsJson): PlaylistDeta
 
 // NOTE(tec27): This is just the fields we actually care about (and therefore request in our API
 // request), this API can actually return more things
+export interface PlaylistItemJson {
+  added_by: { id: string }
+  track: {
+    duration_ms: number
+    id: string
+  }
+}
+
 export interface PlaylistItemsJson {
   next: string | null
   total: number
-  items: Array<{
-    added_by: { id: string }
-    track: {
-      duration_ms: number
-      id: string
-    }
-  }>
+  items: PlaylistItemJson[]
 }
+
+export type PlaylistItem = CamelCasedPropertiesDeep<PlaylistItemJson>
 
 export type PlaylistItems = CamelCasedPropertiesDeep<PlaylistItemsJson>
 
