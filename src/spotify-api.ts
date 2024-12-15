@@ -76,7 +76,12 @@ export type SpotifyEpisode = CamelCasedPropertiesDeep<SpotifyEpisodeJson>
 export interface CurrentlyPlayingJson {
   progress_ms: number
   is_playing: boolean
-  item: SpotifyTrackJson | SpotifyEpisodeJson
+  item: SpotifyTrackJson | SpotifyEpisodeJson | null
+  context: {
+    type: 'artist' | 'playlist' | 'album' | 'show'
+    href: string
+    uri: string
+  } | null
 }
 
 export type SpotifyItem = SpotifyTrack | SpotifyEpisode
@@ -119,18 +124,30 @@ export function fromEpisodeJson(json: SpotifyEpisodeJson): SpotifyEpisode {
 }
 
 export function fromCurrentlyPlayingJson(json: CurrentlyPlayingJson): CurrentlyPlaying {
+  let item: SpotifyItem | null
+  if (json.item) {
+    item = json.item.type === 'track' ? fromTrackJson(json.item) : fromEpisodeJson(json.item)
+  } else {
+    item = null
+  }
+
   return {
     progressMs: json.progress_ms,
     isPlaying: json.is_playing,
-    item: json.item.type === 'track' ? fromTrackJson(json.item) : fromEpisodeJson(json.item),
+    item,
+    context: json.context,
   }
 }
 
 export function getImages(info: ReadonlyDeep<CurrentlyPlaying>): ReadonlyDeep<SpotifyImage[]> {
-  if (info.item.type === 'episode') {
+  if (info.item?.type === 'episode') {
     return info.item.images
-  } else {
+  } else if (info.item?.type === 'track') {
     return info.item.album.images
+  } else if (info.item === null) {
+    return []
+  } else {
+    return info.item satisfies never
   }
 }
 

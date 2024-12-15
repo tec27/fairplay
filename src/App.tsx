@@ -1,5 +1,5 @@
 import { css, Global } from '@emotion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { AuthFlow } from './AuthFlow'
 import { PlaylistSorter, PlaylistSortMode } from './playlist-sorter'
 import { ChoosePlaylistDialog } from './PlaylistsList'
@@ -157,10 +157,13 @@ function MainForm() {
 
 function PlaylistSorterView({ playlistId }: { playlistId: string }) {
   const spotifyAuth = useSpotifyAuthToken()
-  const [sortMode, _setSortMode] = useState<PlaylistSortMode>(PlaylistSortMode.OneTime)
+  const [sortMode, setSortMode] = useState<PlaylistSortMode>(PlaylistSortMode.OneTime)
   const playlistSorterRef = useRef<PlaylistSorter | undefined>(undefined)
   const [sortStatus, setSortStatus] = useState<string | undefined>(undefined)
   const [error, setError] = useState<Error | undefined>(undefined)
+
+  const oneTimeId = useId()
+  const continuousId = useId()
 
   useEffect(() => {
     if (!spotifyAuth) {
@@ -181,7 +184,30 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
 
   return (
     <div>
-      <button onClick={() => playlistSorterRef.current?.start()}>One Time Sort</button>
+      <div>
+        <input
+          type='radio'
+          name='sortMode'
+          value={PlaylistSortMode.Continuous}
+          checked={sortMode === PlaylistSortMode.Continuous}
+          id={continuousId}
+          onChange={e => setSortMode(e.target.value as PlaylistSortMode)}
+        />
+        <label htmlFor={continuousId}>Continuous</label>
+      </div>
+      <div>
+        <input
+          type='radio'
+          name='sortMode'
+          value={PlaylistSortMode.OneTime}
+          checked={sortMode === PlaylistSortMode.OneTime}
+          id={oneTimeId}
+          onChange={e => setSortMode(e.target.value as PlaylistSortMode)}
+        />
+        <label htmlFor={oneTimeId}>One time</label>
+      </div>
+      <button onClick={() => playlistSorterRef.current?.start()}>Start</button>
+      <button onClick={() => playlistSorterRef.current?.stop()}>Stop</button>
       <div>{sortStatus}</div>
       <div>{error ? `Error: ${error.message}` : undefined}</div>
     </div>
