@@ -159,6 +159,7 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
   const spotifyAuth = useSpotifyAuthToken()
   const [sortMode, setSortMode] = useState<PlaylistSortMode>(PlaylistSortMode.OneTime)
   const playlistSorterRef = useRef<PlaylistSorter | undefined>(undefined)
+  const [sortActive, setSortActive] = useState(false)
   const [sortStatus, setSortStatus] = useState<string | undefined>(undefined)
   const [error, setError] = useState<Error | undefined>(undefined)
 
@@ -173,12 +174,18 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
     const playlistSorter = new PlaylistSorter(spotifyAuth, playlistId, sortMode)
     playlistSorterRef.current = playlistSorter
 
-    playlistSorter.on('statusChange', setSortStatus).on('error', setError)
+    playlistSorter
+      .on('activeChange', setSortActive)
+      .on('statusChange', setSortStatus)
+      .on('error', setError)
 
     return () => {
       playlistSorterRef.current = undefined
       playlistSorter.stop()
-      playlistSorter.off('statusChange', setSortStatus).off('error', setError)
+      playlistSorter
+        .off('activeChange', setSortActive)
+        .off('statusChange', setSortStatus)
+        .off('error', setError)
     }
   }, [spotifyAuth, playlistId, sortMode])
 
@@ -206,8 +213,12 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
         />
         <label htmlFor={oneTimeId}>One time</label>
       </div>
-      <button onClick={() => playlistSorterRef.current?.start()}>Start</button>
-      <button onClick={() => playlistSorterRef.current?.stop()}>Stop</button>
+      <button onClick={() => playlistSorterRef.current?.start()} disabled={sortActive}>
+        Start
+      </button>
+      <button onClick={() => playlistSorterRef.current?.stop()} disabled={!sortActive}>
+        Stop
+      </button>
       <div>{sortStatus}</div>
       <div>{error ? `Error: ${error.message}` : undefined}</div>
     </div>

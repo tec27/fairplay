@@ -14,6 +14,8 @@ import { timeout } from './timeout'
 const CURRENT_SONG_REFRESH_INTERVAL_MS = 30 * 1000
 /** How many songs to keep ordered when in continuous mode. */
 const CONTINUOUS_SONGS_TO_REORDER = 3
+/** How long to keep checking for the playlist to be active (when inactive) before shutting off. */
+const INACTIVE_TIMEOUT_MS = 60 * 60 * 1000
 
 export interface ReorderOp {
   /** The index of the track to reorder. */
@@ -89,6 +91,7 @@ export function findNextReorderOp(
 }
 
 export interface PlaylistSorterEvents {
+  activeChange: (active: boolean) => void
   statusChange: (status: string) => void
   complete: () => void
   error: (error: Error) => void
@@ -115,7 +118,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
     this.abortController?.abort()
     this.abortController = new AbortController()
     const signal = this.abortController.signal
-    this.emit('statusChange', 'initializing...')
+    this.emit('statusChange', 'initializing…')
 
     this.doOperation(async () => {
       signal.throwIfAborted()
@@ -137,13 +140,19 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
 
   private doOperation(fn: () => Promise<void>) {
     this.operationPromise = this.operationPromise
-      .then(() => fn())
+      .then(() => {
+        this.emit('activeChange', true)
+        return fn()
+      })
       .catch(err => {
         if (err.name !== 'AbortError') {
           this.emit('error', err)
         } else {
           this.emit('statusChange', 'stopped')
         }
+      })
+      .finally(() => {
+        this.emit('activeChange', false)
       })
   }
 
@@ -159,7 +168,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
     let pos = 1
     const items = playlistItems.slice()
     const ops: ReorderOp[] = []
-    this.emit('statusChange', 'planning operations...')
+    this.emit('statusChange', 'planning operations…')
     while (true) {
       const op = findNextReorderOp(items, pos)
       if (!op) {
@@ -181,7 +190,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
       if (completed > 0) {
         await timeout(200, signal)
       }
-      this.emit('statusChange', `reordering ${completed + 1} of ${total}...`)
+      this.emit('statusChange', `reordering ${completed + 1} of ${total}…`)
 
       // NOTE(tec27): No idea why TS is erroring on this without the type ??
       const response: { snapshot_id: string } | undefined = await this.authToken.fetch<{
@@ -209,20 +218,22 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
   }
 
   private async doContinuousSort({ signal }: { signal: AbortSignal }): Promise<void> {
+    let playlistLastActive = performance.now()
     while (true) {
       signal.throwIfAborted()
 
-      this.emit('statusChange', 'fetching playlist items...')
+      this.emit('statusChange', 'fetching playlist items…')
       const { playlistItems, snapshotId: lastSnapshotId } = await this.retrievePlaylistItems(signal)
-      this.emit('statusChange', 'checking current playback position...')
+      this.emit('statusChange', 'checking current playback position…')
       const playlistPosition = await this.retrievePlaylistPosition({ signal, playlistItems })
 
       if (playlistPosition !== undefined) {
+        playlistLastActive = performance.now()
         // Sort the next few songs
         let pos = playlistPosition + 1
         const items = playlistItems.slice()
         const ops: ReorderOp[] = []
-        this.emit('statusChange', 'planning operations...')
+        this.emit('statusChange', 'planning operations…')
         while (true) {
           const op = findNextReorderOp(items, pos)
           if (!op || op.insertBefore > playlistPosition + CONTINUOUS_SONGS_TO_REORDER) {
@@ -244,7 +255,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
           if (completed > 0) {
             await timeout(200, signal)
           }
-          this.emit('statusChange', `reordering ${completed + 1} of ${total}...`)
+          this.emit('statusChange', `reordering ${completed + 1} of ${total}…`)
 
           // NOTE(tec27): No idea why TS is erroring on this without the type ??
           const response: { snapshot_id: string } | undefined = await this.authToken.fetch<{
@@ -269,10 +280,14 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
         this.emit(
           'statusChange',
           `playing #${playlistPosition + 1}, next ${CONTINUOUS_SONGS_TO_REORDER} songs in order, ` +
-            `waiting for next song...`,
+            `monitoring…`,
         )
       } else {
-        this.emit('statusChange', 'waiting for playback to return to playlist...')
+        if (performance.now() - playlistLastActive > INACTIVE_TIMEOUT_MS) {
+          this.emit('statusChange', 'playlist inactive for too long, stopping…')
+          break
+        }
+        this.emit('statusChange', 'waiting for playback to return to playlist…')
       }
 
       await timeout(CURRENT_SONG_REFRESH_INTERVAL_MS, signal)
@@ -301,7 +316,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
     do {
       signal.throwIfAborted()
 
-      this.emit('statusChange', 'fetching playlist items...')
+      this.emit('statusChange', 'fetching playlist items…')
       const responseJson = await this.authToken.fetch<PlaylistItemsJson>(next, {
         signal,
       })
