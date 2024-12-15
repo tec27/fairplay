@@ -93,3 +93,27 @@ export function useMultiRef<T>(
 
   return [elemRef, setElemRef]
 }
+
+export function useLocalStorageState<T extends string | undefined>(
+  key: string,
+  initialValue: T,
+): [value: T, setValue: (value: T) => void] {
+  const [storedValue, setStoredValue] = useState(() => {
+    const item = window.localStorage.getItem(key)
+    return item !== null ? item : initialValue
+  })
+
+  const setValue = useCallback(
+    (value: T) => {
+      setStoredValue(value)
+      if (value === undefined) {
+        window.localStorage.removeItem(key)
+      } else {
+        window.localStorage.setItem(key, value)
+      }
+    },
+    [key],
+  )
+
+  return [storedValue as T, setValue]
+}

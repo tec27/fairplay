@@ -2,22 +2,17 @@ import { css } from '@emotion/react'
 import { useEffect, useRef, useState } from 'react'
 import { toBase64UrlSafe } from './base64'
 import { SPOTIFY_CLIENT_ID, SPOTIFY_SCOPE, SpotifyAuthToken, useSpotifyAuth } from './spotify-api'
+import SpotifyLogo from './spotify.svg?react'
+import { BUTTON_RESET } from './style'
 
 export function AuthFlow() {
   return (
-    <div>
+    <div
+      css={css`
+        padding-top: 24px;
+      `}>
       <HandleAuthCallback />
-      <div
-        css={css`
-          padding: 8px 16px;
-          font-size: 32px;
-          font-weight: 500;
-        `}>
-        fairplay
-      </div>
-      <div>
-        <LogInButton />
-      </div>
+      <LogInButton />
     </div>
   )
 }
@@ -43,6 +38,30 @@ export function LogInButton() {
 
   return (
     <button
+      css={css`
+        ${BUTTON_RESET}
+
+        padding: 8px 12px;
+        margin: 8px 0;
+
+        display: flex;
+        align-items: center;
+        gap: 16px;
+
+        background-color: var(--spotify-green);
+        border-radius: 9999px;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 500;
+
+        &:hover {
+          background-color: oklch(from var(--spotify-green) calc(l * 1.05) c h);
+        }
+
+        &:active {
+          background-color: oklch(from var(--spotify-green) calc(l * 1.1) c h);
+        }
+      `}
       onClick={() => {
         setInProgress(true)
         Promise.resolve()
@@ -70,7 +89,13 @@ export function LogInButton() {
           })
       }}
       disabled={inProgress}>
-      Log in with Spotify
+      <SpotifyLogo
+        css={css`
+          width: 40px;
+          height: auto;
+        `}
+      />
+      <span>Log in with Spotify</span>
     </button>
   )
 }

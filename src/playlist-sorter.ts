@@ -135,6 +135,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
 
   stop() {
     this.emit('statusChange', 'stopped')
+    this.emit('activeChange', false)
     this.abortController?.abort()
   }
 
