@@ -77,6 +77,7 @@ export interface CurrentlyPlayingJson {
   progress_ms: number
   is_playing: boolean
   item: SpotifyTrackJson | SpotifyEpisodeJson | null
+  shuffle_state: boolean
   context: {
     type: 'artist' | 'playlist' | 'album' | 'show'
     href: string
@@ -135,6 +136,7 @@ export function fromCurrentlyPlayingJson(json: CurrentlyPlayingJson): CurrentlyP
     progressMs: json.progress_ms,
     isPlaying: json.is_playing,
     item,
+    shuffleState: json.shuffle_state,
     context: json.context,
   }
 }

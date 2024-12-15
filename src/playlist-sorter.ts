@@ -365,7 +365,7 @@ export class PlaylistSorter extends EventEmitter<PlaylistSorterEvents> {
     }
 
     const playlistUri = `spotify:playlist:${this.playlistId}`
-    if (currentlyPlaying.context?.uri !== playlistUri) {
+    if (currentlyPlaying.context?.uri !== playlistUri || currentlyPlaying.shuffleState) {
       return undefined
     }
 
