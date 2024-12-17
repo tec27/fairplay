@@ -9,7 +9,11 @@ export function AuthFlow() {
   return (
     <div
       css={css`
-        padding-top: 24px;
+        padding-top: 40px;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       `}>
       <HandleAuthCallback />
       <LogInButton />

@@ -66,6 +66,8 @@ export function App() {
           html,
           body,
           #root {
+            width: 100%;
+            height: 100%;
             padding: 0;
             margin: 0;
             background: #212732;
@@ -73,14 +75,24 @@ export function App() {
           }
 
           #root {
-            padding: 16px 0;
-            margin: 0 auto;
-            max-width: 960px;
-            overflow-x: hidden;
-
             --spotify-green: rgb(29, 185, 84);
             --color-error: #ff616e;
             --text-secondary: #a0c0d8;
+          }
+
+          a,
+          a:visited {
+            color: #86cbff;
+            text-decoration: underline;
+          }
+
+          a:hover {
+            color: oklch(from #86cbff calc(l * 1.05) c h);
+            text-decoration: dotted underline;
+          }
+
+          a:active {
+            color: oklch(from #86cbff calc(l * 1.1) c h);
           }
         `}
       />
@@ -89,31 +101,58 @@ export function App() {
         <div
           css={css`
             position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 40px;
+            min-height: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 16px 0;
+
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-columns: 100%;
           `}>
-          <div
-            css={css`
-              font-size: 32px;
-              font-weight: 500;
-            `}>
-            fairplay
-          </div>
-          <div
-            css={css`
-              color: var(--text-secondary);
-              font-size: 20px;
-              text-align: center;
-              padding: 0 16px;
-            `}>
-            Sort a collaborative Spotify playlist for even playtime between all users.
-          </div>
+          <header>
+            <div
+              css={css`
+                font-size: 32px;
+                font-weight: 500;
+                text-align: center;
+              `}>
+              fairplay
+            </div>
+            <div
+              css={css`
+                padding: 16px 16px;
+                color: var(--text-secondary);
+                font-size: 20px;
+                text-align: center;
+              `}>
+              Sort a collaborative Spotify playlist for even playtime between all users.
+            </div>
+          </header>
           <AppContent />
+          <AuthorFooter />
         </div>
       </SpotifyAuthProvider>
     </>
+  )
+}
+
+function AuthorFooter() {
+  return (
+    <footer
+      css={css`
+        padding: 16px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 16px;
+      `}>
+      <div>
+        created by{' '}
+        <a href='https://bsky.app/profile/tec27.com' target='_blank' rel='noopener'>
+          tec27
+        </a>
+      </div>
+    </footer>
   )
 }
 
@@ -121,8 +160,10 @@ function AppContent() {
   const authToken = useSpotifyAuthToken()
   return authToken ? (
     <SpotifyCurrentUserProvider>
-      <SpotifyUserView />
-      <MainForm />
+      <div>
+        <SpotifyUserView />
+        <MainForm />
+      </div>
     </SpotifyCurrentUserProvider>
   ) : (
     <AuthFlow />
@@ -133,7 +174,6 @@ function MainForm() {
   const spotifyUser = useCurrentUser()
   const spotifyAuth = useSpotifyAuthToken()
   const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = useState(false)
-  console.log(`userId: ${spotifyUser?.id}`)
   const [playlistId, setPlaylistId] = useLocalStorageState<string | undefined>(
     `fairplay.${spotifyUser?.id ?? ''}:playlist`,
     undefined,
@@ -194,6 +234,9 @@ function MainForm() {
           ${BUTTON_RESET};
           min-width: 240px;
           max-width: min(480px, 100%);
+          margin: 32px auto 40px;
+
+          display: block;
 
           background: #292e3a;
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -218,6 +261,7 @@ function MainForm() {
           css={css`
             color: var(--color-error);
             font-size: 20px;
+            text-align: center;
           `}>
           Error: {error.message}
         </div>
@@ -333,25 +377,33 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
   }, [spotifyAuth, playlistId, sortMode])
 
   return (
-    <>
+    <div
+      css={css`
+        text-align: center;
+      `}>
       <fieldset
         css={css`
-          margin: 0;
+          width: 320px;
+          margin: 0 auto;
           padding: 0 16px;
 
+          display: block;
+
           border: none;
+          text-align: left;
         `}>
         <legend
           css={css`
             margin: 0 0 8px;
             padding: 0;
             font-size: 16px;
+            text-align: left;
           `}>
           Sort mode:
         </legend>
         <div
           css={css`
-            width: 320px;
+            width: 100%;
 
             display: flex;
             align-items: stretch;
@@ -378,23 +430,29 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
 
       <div
         css={css`
-          max-width: 480px;
-          margin-top: -24px;
+          margin: 16px 0 40px;
+
+          display: inline-block;
 
           color: var(--text-secondary);
         `}>
         {sortMode === PlaylistSortMode.Continuous ? (
           <>
-            The playlist will be sorted as songs are added to it, from the current playback point.
-            Make sure this Spotify account is the one playing the playlist, and that shuffle is
-            disabled.
+            <p>Sort the selected playlist during playback, from the current playback point.</p>
+            <p>
+              Make sure this Spotify account is the one playing the playlist, and that shuffle is
+              disabled.
+            </p>
           </>
         ) : (
-          <>The selected playlist will be sorted once in its entirety.</>
+          <>Sort the selected playlist once in its entirety.</>
         )}
       </div>
 
-      <div>
+      <div
+        css={css`
+          margin-bottom: 24px;
+        `}>
         <button
           css={css`
             ${BUTTON_RESET};
@@ -467,6 +525,7 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
           css={css`
             color: var(--color-error);
             font-size: 20px;
+            padding-bottom: 16px;
           `}>
           Error: {error.message}
         </div>
@@ -480,7 +539,7 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
         </span>
         {sortStatus}
       </div>
-    </>
+    </div>
   )
 }
 

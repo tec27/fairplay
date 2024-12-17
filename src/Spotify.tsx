@@ -94,7 +94,7 @@ export function SpotifyUserView() {
     <div
       css={css`
         position: absolute;
-        top: 0;
+        top: 16px;
         right: 16px;
       `}>
       {currentUser ? (
