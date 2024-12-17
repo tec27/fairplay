@@ -430,7 +430,7 @@ function PlaylistSorterView({ playlistId }: { playlistId: string }) {
 
       <div
         css={css`
-          margin: 16px 0 40px;
+          margin: 16px 0 64px;
 
           display: inline-block;
 
